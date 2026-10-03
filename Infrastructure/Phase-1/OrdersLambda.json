@@ -1,0 +1,129 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Lambda and IAM infrastructure for the AWS Serverless Order Platform - Phase 1",
+  "Resources": {
+    "OrderIntakeLambdaRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "order-platform-order-intake-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "OrderIntakeLambdaPolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:PutItem"
+                  ],
+                  "Resource": {
+                    "Fn::ImportValue": "OrderPlatform-OrdersTableArn"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "aws-serverless-order-platform"
+          },
+          {
+            "Key": "Phase",
+            "Value": "phase-1"
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    },
+    "OrderIntakeLambda": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "order-platform-order-intake",
+        "Runtime": "python3.13",
+        "Handler": "lambda_function.lambda_handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "OrderIntakeLambdaRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": "aws-serverless-order-platform-artifacts-03-10-2026",
+          "S3Key": "lambda-v3.zip"
+        },
+        "Timeout": 10,
+        "MemorySize": 128,
+        "Environment": {
+          "Variables": {
+            "ORDERS_TABLE": {
+              "Fn::ImportValue": "OrderPlatform-OrdersTableName"
+            }
+          }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "aws-serverless-order-platform"
+          },
+          {
+            "Key": "Phase",
+            "Value": "phase-1"
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "OrderIntakeLambdaArn": {
+      "Description": "ARN of the Order Intake Lambda",
+      "Value": {
+        "Fn::GetAtt": [
+          "OrderIntakeLambda",
+          "Arn"
+        ]
+      },
+      "Export": {
+        "Name": "OrderPlatform-OrderIntakeLambdaArn"
+      }
+    }
+  }
+}

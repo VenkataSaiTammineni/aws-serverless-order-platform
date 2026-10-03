@@ -1,0 +1,119 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "API Gateway REST API for the AWS Serverless Order Platform - Phase 1",
+  "Resources": {
+    "OrderApi": {
+      "Type": "AWS::ApiGateway::RestApi",
+      "Properties": {
+        "Name": "order-platform-api",
+        "EndpointConfiguration": {
+          "Types": [
+            "REGIONAL"
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "aws-serverless-order-platform"
+          },
+          {
+            "Key": "Phase",
+            "Value": "phase-1"
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    },
+    "OrdersResource": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "OrderApi"
+        },
+        "ParentId": {
+          "Fn::GetAtt": [
+            "OrderApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "orders"
+      }
+    },
+    "OrdersPostMethod": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "OrderApi"
+        },
+        "ResourceId": {
+          "Ref": "OrdersResource"
+        },
+        "HttpMethod": "POST",
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "AWS_PROXY",
+          "IntegrationHttpMethod": "POST",
+          "Uri": {
+            "Fn::Sub": [
+              "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations",
+              {
+                "LambdaArn": {
+                  "Fn::ImportValue": "OrderPlatform-OrderIntakeLambdaArn"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "ApiGatewayInvokeLambdaPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::ImportValue": "OrderPlatform-OrderIntakeLambdaArn"
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${OrderApi}/*/POST/orders"
+        }
+      },
+      "DependsOn": [
+        "OrdersPostMethod"
+      ]
+    },
+    "ApiDeployment": {
+      "Type": "AWS::ApiGateway::Deployment",
+      "DependsOn": [
+        "OrdersPostMethod"
+      ],
+      "Properties": {
+        "RestApiId": {
+          "Ref": "OrderApi"
+        },
+        "StageName": "dev"
+      }
+    }
+  },
+  "Outputs": {
+    "ApiId": {
+      "Description": "API Gateway REST API ID",
+      "Value": {
+        "Ref": "OrderApi"
+      }
+    },
+    "ApiEndpoint": {
+      "Description": "Order API endpoint",
+      "Value": {
+        "Fn::Sub": "https://${OrderApi}.execute-api.${AWS::Region}.amazonaws.com/dev/orders"
+      }
+    }
+  }
+}

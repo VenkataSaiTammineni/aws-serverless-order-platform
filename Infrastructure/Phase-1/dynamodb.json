@@ -1,0 +1,75 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+
+  "Description": "DynamoDB infrastructure for the AWS Serverless Order Platform - Phase 1",
+
+  "Resources": {
+    "OrdersTable": {
+      "Type": "AWS::DynamoDB::Table",
+
+      "Properties": {
+        "TableName": "order-platform-orders",
+
+        "BillingMode": "PAY_PER_REQUEST",
+
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "orderId",
+            "AttributeType": "S"
+          }
+        ],
+
+        "KeySchema": [
+          {
+            "AttributeName": "orderId",
+            "KeyType": "HASH"
+          }
+        ],
+
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "aws-serverless-order-platform"
+          },
+          {
+            "Key": "Phase",
+            "Value": "phase-1"
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    }
+  },
+
+  "Outputs": {
+    "OrdersTableArn": {
+      "Description": "ARN of the Orders DynamoDB table",
+      "Value": {
+        "Fn::GetAtt": [
+          "OrdersTable",
+          "Arn"
+        ]
+      },
+      "Export": {
+        "Name": "OrderPlatform-OrdersTableArn"
+      }
+    },
+
+    "OrdersTableName": {
+      "Description": "Name of the Orders DynamoDB table",
+      "Value": {
+        "Ref": "OrdersTable"
+      },
+      "Export": {
+        "Name": "OrderPlatform-OrdersTableName"
+      }
+    }
+  }
+}
