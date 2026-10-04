@@ -1,11 +1,11 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Lambda and IAM infrastructure for the AWS Serverless Order Platform - Phase 1",
+  "Description": "Worker Lambda and IAM infrastructure for Phase 2",
   "Resources": {
-    "OrderIntakeLambdaRole": {
+    "OrderWorkerLambdaRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
-        "RoleName": "order-platform-order-intake-role",
+        "RoleName": "order-platform-order-worker-role",
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [
@@ -20,7 +20,7 @@
         },
         "Policies": [
           {
-            "PolicyName": "OrderIntakeLambdaPolicy",
+            "PolicyName": "OrderWorkerLambdaPolicy",
             "PolicyDocument": {
               "Version": "2012-10-17",
               "Statement": [
@@ -36,19 +36,22 @@
                 {
                   "Effect": "Allow",
                   "Action": [
-                    "dynamodb:PutItem"
+                    "sqs:ReceiveMessage",
+                    "sqs:DeleteMessage",
+                    "sqs:GetQueueAttributes"
                   ],
                   "Resource": {
-                    "Fn::ImportValue": "OrderPlatform-OrdersTableArn"
+                    "Fn::ImportValue": "OrderPlatform-OrderQueueArn"
                   }
                 },
                 {
                   "Effect": "Allow",
                   "Action": [
-                    "sqs:SendMessage"
+                    "dynamodb:GetItem",
+                    "dynamodb:UpdateItem"
                   ],
                   "Resource": {
-                    "Fn::ImportValue": "OrderPlatform-OrderQueueArn"
+                    "Fn::ImportValue": "OrderPlatform-OrdersTableArn"
                   }
                 }
               ]
@@ -62,7 +65,7 @@
           },
           {
             "Key": "Phase",
-            "Value": "phase-1"
+            "Value": "phase-2"
           },
           {
             "Key": "Environment",
@@ -75,31 +78,28 @@
         ]
       }
     },
-    "OrderIntakeLambda": {
+    "OrderWorkerLambda": {
       "Type": "AWS::Lambda::Function",
       "Properties": {
-        "FunctionName": "order-platform-order-intake",
+        "FunctionName": "order-platform-order-worker",
         "Runtime": "python3.13",
         "Handler": "lambda_function.lambda_handler",
         "Role": {
           "Fn::GetAtt": [
-            "OrderIntakeLambdaRole",
+            "OrderWorkerLambdaRole",
             "Arn"
           ]
         },
         "Code": {
           "S3Bucket": "aws-serverless-order-platform-artifacts-03-10-2026",
-          "S3Key": "lambda-v4.zip"
+          "S3Key": "worker-v1.zip"
         },
-        "Timeout": 10,
+        "Timeout": 30,
         "MemorySize": 128,
         "Environment": {
           "Variables": {
             "ORDERS_TABLE": {
               "Fn::ImportValue": "OrderPlatform-OrdersTableName"
-            },
-			"ORDER_QUEUE_URL": {
-              "Fn::ImportValue": "OrderPlatform-OrderQueueUrl"
             }
           }
         },
@@ -110,7 +110,7 @@
           },
           {
             "Key": "Phase",
-            "Value": "phase-1"
+            "Value": "phase-2"
           },
           {
             "Key": "Environment",
@@ -122,19 +122,32 @@
           }
         ]
       }
+    },
+    "OrderWorkerEventSourceMapping": {
+      "Type": "AWS::Lambda::EventSourceMapping",
+      "Properties": {
+        "EventSourceArn": {
+          "Fn::ImportValue": "OrderPlatform-OrderQueueArn"
+        },
+        "FunctionName": {
+          "Ref": "OrderWorkerLambda"
+        },
+        "BatchSize": 1,
+        "Enabled": true
+      }
     }
   },
   "Outputs": {
-    "OrderIntakeLambdaArn": {
-      "Description": "ARN of the Order Intake Lambda",
+    "OrderWorkerLambdaArn": {
+      "Description": "ARN of the Order Worker Lambda",
       "Value": {
         "Fn::GetAtt": [
-          "OrderIntakeLambda",
+          "OrderWorkerLambda",
           "Arn"
         ]
       },
       "Export": {
-        "Name": "OrderPlatform-OrderIntakeLambdaArn"
+        "Name": "OrderPlatform-OrderWorkerLambdaArn"
       }
     }
   }

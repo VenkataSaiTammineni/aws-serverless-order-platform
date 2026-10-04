@@ -1,0 +1,106 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Phase 2 SQS infrastructure for the AWS Serverless Order Processing Platform",
+
+  "Resources": {
+    "OrderDLQ": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "order-platform-order-dlq",
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "aws-serverless-order-platform"
+          },
+          {
+            "Key": "Phase",
+            "Value": "phase-2"
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    },
+
+    "OrderQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "order-platform-order-queue",
+        "VisibilityTimeout": 60,
+
+        "RedrivePolicy": {
+          "deadLetterTargetArn": {
+            "Fn::GetAtt": [
+              "OrderDLQ",
+              "Arn"
+            ]
+          },
+          "maxReceiveCount": 3
+        },
+
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "aws-serverless-order-platform"
+          },
+          {
+            "Key": "Phase",
+            "Value": "phase-2"
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    }
+  },
+
+  "Outputs": {
+    "OrderQueueArn": {
+      "Description": "ARN of the main order processing queue",
+      "Value": {
+        "Fn::GetAtt": [
+          "OrderQueue",
+          "Arn"
+        ]
+      },
+      "Export": {
+        "Name": "OrderPlatform-OrderQueueArn"
+      }
+    },
+
+    "OrderQueueUrl": {
+      "Description": "URL of the main order processing queue",
+      "Value": {
+        "Ref": "OrderQueue"
+      },
+      "Export": {
+        "Name": "OrderPlatform-OrderQueueUrl"
+      }
+    },
+
+    "OrderDLQArn": {
+      "Description": "ARN of the order processing dead letter queue",
+      "Value": {
+        "Fn::GetAtt": [
+          "OrderDLQ",
+          "Arn"
+        ]
+      },
+      "Export": {
+        "Name": "OrderPlatform-OrderDLQArn"
+      }
+    }
+  }
+}

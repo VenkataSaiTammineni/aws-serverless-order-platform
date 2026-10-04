@@ -8,33 +8,24 @@ import boto3
 
 
 dynamodb = boto3.resource("dynamodb")
+table = dynamodb.Table(os.environ["ORDERS_TABLE"])
 
-table = dynamodb.Table(
-    os.environ["ORDERS_TABLE"]
-)
+sqs = boto3.client("sqs")
+queue_url = os.environ["ORDER_QUEUE_URL"]
 
 
 def lambda_handler(event, context):
 
-    print("Received event:")
-    print(json.dumps(event))
-
     try:
-        body = json.loads(
-            event.get("body", "{}")
-        )
+        body = json.loads(event.get("body", "{}"))
 
         customer_id = body.get("customerId")
         items = body.get("items")
         total_amount = body.get("totalAmount")
 
         if not customer_id or not items or total_amount is None:
-
             return {
                 "statusCode": 400,
-                "headers": {
-                    "Content-Type": "application/json"
-                },
                 "body": json.dumps({
                     "message": "customerId, items and totalAmount are required"
                 })
@@ -48,24 +39,26 @@ def lambda_handler(event, context):
             "items": items,
             "totalAmount": Decimal(str(total_amount)),
             "status": "RECEIVED",
-            "createdAt": datetime.now(
-                timezone.utc
-            ).isoformat()
+            "createdAt": datetime.now(timezone.utc).isoformat()
         }
 
+        # 1. Store order in DynamoDB
         table.put_item(Item=order)
 
-        print(
-            f"Order created successfully: {order_id}"
+        # 2. Send order ID to SQS
+        message = {
+            "orderId": order_id
+        }
+
+        sqs.send_message(
+            QueueUrl=queue_url,
+            MessageBody=json.dumps(message)
         )
 
         return {
-            "statusCode": 201,
-            "headers": {
-                "Content-Type": "application/json"
-            },
+            "statusCode": 202,
             "body": json.dumps({
-                "message": "Order created successfully",
+                "message": "Order accepted for processing",
                 "orderId": order_id,
                 "status": "RECEIVED"
             })
@@ -73,15 +66,10 @@ def lambda_handler(event, context):
 
     except Exception as e:
 
-        print(
-            f"Error processing order: {str(e)}"
-        )
+        print(f"Error processing order: {str(e)}")
 
         return {
             "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json"
-            },
             "body": json.dumps({
                 "message": "Internal server error"
             })
