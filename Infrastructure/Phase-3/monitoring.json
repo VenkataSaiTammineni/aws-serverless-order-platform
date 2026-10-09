@@ -1,0 +1,97 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "CloudWatch monitoring and SNS alerting for Phase 3",
+
+  "Resources": {
+    "OrderPlatformSNSTopic": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "TopicName": "order-platform-alerts",
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "aws-serverless-order-platform"
+          },
+          {
+            "Key": "Phase",
+            "Value": "phase-3"
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          },
+          {
+            "Key": "ManagedBy",
+            "Value": "CloudFormation"
+          }
+        ]
+      }
+    },
+
+    "OrderPlatformEmailSubscription": {
+      "Type": "AWS::SNS::Subscription",
+      "Properties": {
+        "TopicArn": {
+          "Ref": "OrderPlatformSNSTopic"
+        },
+        "Protocol": "email",
+        "Endpoint": "venkatawsdocker@gmail.com"
+      }
+    },
+
+    "OrderDLQAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "order-platform-dlq-messages",
+        "AlarmDescription": "Alarm when one or more messages are visible in the order processing DLQ",
+
+        "Namespace": "AWS/SQS",
+        "MetricName": "ApproximateNumberOfMessagesVisible",
+
+        "Dimensions": [
+          {
+            "Name": "QueueName",
+            "Value": "order-platform-order-dlq"
+          }
+        ],
+
+        "Statistic": "Maximum",
+        "Period": 60,
+        "EvaluationPeriods": 1,
+
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+
+        "TreatMissingData": "notBreaching",
+
+        "AlarmActions": [
+          {
+            "Ref": "OrderPlatformSNSTopic"
+          }
+        ]
+      }
+    }
+  },
+
+  "Outputs": {
+    "SNSTopicArn": {
+      "Description": "ARN of the order platform SNS alert topic",
+      "Value": {
+        "Ref": "OrderPlatformSNSTopic"
+      },
+      "Export": {
+        "Name": "OrderPlatform-SNSTopicArn"
+      }
+    },
+
+    "DLQAlarmName": {
+      "Description": "CloudWatch alarm for the order processing DLQ",
+      "Value": {
+        "Ref": "OrderDLQAlarm"
+      },
+      "Export": {
+        "Name": "OrderPlatform-DLQAlarmName"
+      }
+    }
+  }
+}
